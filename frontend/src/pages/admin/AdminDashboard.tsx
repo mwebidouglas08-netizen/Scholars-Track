@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import AdminLayout from "../components/AdminLayout";
-import { adminAPI } from "../lib/api";
+import AdminLayout from "../../components/AdminLayout";
+import { adminAPI } from "../../lib/api";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null);
