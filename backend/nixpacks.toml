@@ -1,13 +1,12 @@
-[build]
-builder = "NIXPACKS"
-buildCommand = "npm install && npm run build"
+# Tell nixpacks exactly what packages and steps to use
+[phases.setup]
+nixPkgs = ["nodejs_22", "python3", "gcc", "gnumake"]
 
-[deploy]
-startCommand = "npm run start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 30
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+[phases.install]
+cmds = ["npm install --include=dev"]
 
-[[services]]
-name = "scholarstrack-api"
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "node dist/index.js"
