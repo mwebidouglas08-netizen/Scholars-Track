@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
-import { submissions, stageReviews, notifications } from "../db/schema";
+import { submissions, stageReviews, notifications, users } from "../db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 
@@ -13,7 +13,6 @@ router.get("/my", requireAuth, async (req: Request, res: Response) => {
     const user = (req as any).user;
     const subs = await db.select().from(submissions).where(eq(submissions.studentId, user.id));
 
-    // Get stage reviews for each submission
     const subsWithReviews = await Promise.all(
       subs.map(async (sub) => {
         const reviews = await db.select().from(stageReviews).where(eq(stageReviews.submissionId, sub.id));
@@ -68,7 +67,6 @@ router.get("/progress", requireAuth, async (req: Request, res: Response) => {
 
     const overallScore = totalWeight > 0 ? totalScore / totalWeight : 0;
 
-    // Stage status
     const stageStatus: Record<string, string> = {
       department: "not_started",
       faculty: "not_started",
@@ -78,9 +76,9 @@ router.get("/progress", requireAuth, async (req: Request, res: Response) => {
     for (const sub of subs) {
       const reviews = await db.select().from(stageReviews).where(eq(stageReviews.submissionId, sub.id));
       for (const review of reviews) {
-        const stage = review.stage;
+        const stage = review.stage as string;
         if (review.status === "approved") stageStatus[stage] = "approved";
-        else if (stageStatus[stage] !== "approved") stageStatus[stage] = review.status;
+        else if (stageStatus[stage] !== "approved") stageStatus[stage] = review.status ?? "pending";
       }
     }
 
@@ -123,7 +121,6 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       currentStage: "department",
     });
 
-    // Create initial stage review for department
     await db.insert(stageReviews).values({
       id: uuidv4(),
       submissionId: id,
@@ -141,14 +138,10 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 // GET /api/submissions  - admin: all submissions
 router.get("/", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const allSubs = await db.query.submissions.findMany({
-      with: { },
-    });
+    const allSubs = await db.select().from(submissions);
 
-    // Join with user info manually
-    const { users } = await import("../db/schema");
     const subsWithUsers = await Promise.all(
-      (await db.select().from(submissions)).map(async (sub) => {
+      allSubs.map(async (sub) => {
         const [student] = await db.select({
           id: users.id,
           fullName: users.fullName,
@@ -179,15 +172,14 @@ router.patch("/:id/review", requireAdmin, async (req: Request, res: Response) =>
       return res.status(400).json({ error: "Stage and status are required" });
     }
 
-    // Update or create stage review
     const existingReviews = await db.select().from(stageReviews)
       .where(and(eq(stageReviews.submissionId, id), eq(stageReviews.stage, stage)));
 
     const reviewData = {
-      status,
-      score: score ?? null,
-      comment: comment ?? null,
-      reviewedBy: admin.fullName,
+      status: status as string,
+      score: score != null ? Number(score) : null,
+      comment: comment != null ? String(comment) : null,
+      reviewedBy: admin.fullName as string,
       reviewedAt: new Date().toISOString(),
     };
 
@@ -203,17 +195,15 @@ router.patch("/:id/review", requireAdmin, async (req: Request, res: Response) =>
       });
     }
 
-    // Update submission main record
-    const stageOrder = ["department", "faculty", "board"];
-    let newStage = stage;
-    let newStatus = status;
+    const stageOrder: string[] = ["department", "faculty", "board"];
+    let newStage: string = stage;
+    let newStatus: string = status;
 
     if (status === "approved") {
       const currentIdx = stageOrder.indexOf(stage);
       if (currentIdx < stageOrder.length - 1) {
         newStage = stageOrder[currentIdx + 1];
         newStatus = "pending";
-        // Create next stage review
         await db.insert(stageReviews).values({
           id: uuidv4(),
           submissionId: id,
@@ -221,32 +211,39 @@ router.patch("/:id/review", requireAdmin, async (req: Request, res: Response) =>
           status: "pending",
         });
       } else {
-        newStatus = "approved"; // Final approval
+        newStatus = "approved";
       }
     }
 
-    // Calculate score if provided
-    let overallScore = score ?? undefined;
+    const overallScore: number | null = score != null ? Number(score) : null;
 
     await db.update(submissions).set({
       status: newStatus,
       currentStage: newStage,
       score: overallScore,
-      reviewerComment: comment ?? undefined,
+      reviewerComment: comment != null ? String(comment) : null,
       updatedAt: new Date().toISOString(),
     }).where(eq(submissions.id, id));
 
     // Notify student
     const [sub] = await db.select().from(submissions).where(eq(submissions.id, id));
     if (sub) {
-      const stageLabel = { department: "Department", faculty: "School Faculty", board: "Postgraduate Board" }[stage] || stage;
-      const statusLabel = status === "approved" ? "approved ✅" : status === "revision" ? "needs revision ✏️" : "rejected ❌";
+      const stageLabelMap: Record<string, string> = {
+        department: "Department",
+        faculty: "School Faculty",
+        board: "Postgraduate Board",
+      };
+      const stageLabel: string = stageLabelMap[stage as string] ?? (stage as string);
+      const statusLabel =
+        status === "approved" ? "approved ✅" :
+        status === "revision" ? "needs revision ✏️" : "rejected ❌";
+
       await db.insert(notifications).values({
         id: uuidv4(),
         recipientId: sub.studentId,
         senderId: admin.id,
         title: `Submission ${statusLabel} at ${stageLabel}`,
-        message: `Your submission "${sub.title}" has been ${statusLabel} at ${stageLabel} stage.${score ? ` Score: ${score}/100.` : ""}${comment ? ` Feedback: ${comment}` : ""}`,
+        message: `Your submission "${sub.title}" has been ${statusLabel} at ${stageLabel} stage.${score != null ? ` Score: ${score}/100.` : ""}${comment ? ` Feedback: ${comment}` : ""}`,
       });
     }
 
