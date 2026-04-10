@@ -23,13 +23,8 @@ export default function Landing() {
             onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}>
             Student Login
           </Link>
-          <Link to="/register" style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.875rem", transition: "color 0.15s" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "white")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}>
+          <Link to="/register" style={{ background: "var(--gold)", color: "white", padding: "8px 20px", borderRadius: 8, fontSize: "0.875rem", fontWeight: 500 }}>
             Register
-          </Link>
-          <Link to="/admin/login" style={{ background: "rgba(201,146,42,0.15)", border: "1px solid rgba(201,146,42,0.3)", color: "var(--gold-light)", padding: "7px 16px", borderRadius: 8, fontSize: "0.82rem" }}>
-            Admin Portal
           </Link>
         </div>
       </nav>
