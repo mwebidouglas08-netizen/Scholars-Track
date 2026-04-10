@@ -70,9 +70,7 @@ export default function Login() {
           <p style={{ textAlign: "center", marginTop: "1.2rem", fontSize: "0.875rem", color: "var(--text-muted)" }}>
             Don't have an account? <Link to="/register" style={{ color: "var(--navy)", fontWeight: 500 }}>Register here</Link>
           </p>
-          <p style={{ textAlign: "center", marginTop: "0.5rem", fontSize: "0.82rem" }}>
-            <Link to="/admin/login" style={{ color: "var(--text-muted)" }}>Admin login →</Link>
-          </p>
+
         </div>
       </div>
     </div>
