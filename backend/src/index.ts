@@ -1,11 +1,11 @@
 import express from "express";
 import session from "express-session";
-import SqliteStore from "better-sqlite3-session-store";
+import ConnectSqlite3 from "connect-sqlite3";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
 import * as dotenv from "dotenv";
-import { initializeDatabase, db, sqlite } from "./db";
+import { initializeDatabase, db } from "./db";
 import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
 import authRoutes from "./routes/auth";
@@ -43,14 +43,16 @@ app.use(cors({
 }));
 
 // ── Sessions with SQLite store (no MemoryStore warning) ───
-const SessionStore = SqliteStore(session);
+const SQLiteStore = ConnectSqlite3(session);
+
+// Session DB goes to /tmp on Railway, local dir otherwise
+const sessionDbDir = process.env.RAILWAY_ENVIRONMENT ? "/tmp" : ".";
+
 app.use(session({
-  store: new SessionStore({
-    client: sqlite,
-    expired: {
-      clear: true,
-      intervalMs: 900_000, // clear expired sessions every 15 min
-    },
+  store: new (SQLiteStore as any)({
+    db: "sessions.db",
+    dir: sessionDbDir,
+    concurrentDB: true,
   }),
   secret: process.env.SESSION_SECRET || "scholarstrack-change-in-production-xyz",
   resave: false,
