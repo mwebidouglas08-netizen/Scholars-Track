@@ -10,7 +10,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
-    "better-sqlite3-session-store": "^1.1.2",
+    "connect-sqlite3": "^0.9.13",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.10",
@@ -26,6 +26,7 @@
     "@types/express-session": "^1.18.0",
     "@types/node": "^20.12.7",
     "@types/uuid": "^9.0.8",
+    "@types/connect-sqlite3": "^0.9.5",
     "tsx": "^4.9.3"
   },
   "devDependencies": {
